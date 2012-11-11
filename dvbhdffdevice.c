@@ -376,6 +376,11 @@ bool cDvbHdFfDevice::CanReplay(void) const
 bool cDvbHdFfDevice::SetPlayMode(ePlayMode PlayMode)
 {
     if (PlayMode == pmNone) {
+        if (fd_video == -1)
+            fd_video = DvbOpen(DEV_DVB_VIDEO,  adapter, frontend, O_RDWR | O_NONBLOCK);
+        if (fd_audio == -1)
+            fd_audio = DvbOpen(DEV_DVB_AUDIO,  adapter, frontend, O_RDWR | O_NONBLOCK);
+
         mHdffCmdIf->CmdAvSetVideoSpeed(0, 100);
         mHdffCmdIf->CmdAvSetAudioSpeed(0, 100);
 
@@ -393,21 +398,31 @@ bool cDvbHdFfDevice::SetPlayMode(ePlayMode PlayMode)
         if (playMode == pmNone)
             TurnOffLiveMode(true);
 
-        mHdffCmdIf->CmdAvSetPlayMode(1, Transferring() || (cTransferControl::ReceiverDevice() == this));
-        mHdffCmdIf->CmdAvSetStc(0, 100000);
-        mHdffCmdIf->CmdAvEnableSync(0, false);
-        mHdffCmdIf->CmdAvEnableVideoAfterStop(0, true);
+        if (PlayMode == pmExtern_THIS_SHOULD_BE_AVOIDED)
+        {
+            close(fd_video);
+            fd_video = -1;
+            close(fd_audio);
+            fd_audio = -1;
+        }
+        else
+        {
+            mHdffCmdIf->CmdAvSetPlayMode(1, Transferring() || (cTransferControl::ReceiverDevice() == this));
+            mHdffCmdIf->CmdAvSetStc(0, 100000);
+            mHdffCmdIf->CmdAvEnableSync(0, false);
+            mHdffCmdIf->CmdAvEnableVideoAfterStop(0, true);
 
-        playVideoPid = -1;
-        playAudioPid = -1;
-        audioCounter = 0;
-        videoCounter = 0;
-        freezed = false;
-        trickMode = false;
-        isPlayingVideo = false;
+            playVideoPid = -1;
+            playAudioPid = -1;
+            audioCounter = 0;
+            videoCounter = 0;
+            freezed = false;
+            trickMode = false;
+            isPlayingVideo = false;
 
-        mHdffCmdIf->CmdAvSetDecoderInput(0, 2);
-        ioctl(fd_video, VIDEO_SELECT_SOURCE, VIDEO_SOURCE_MEMORY);
+            mHdffCmdIf->CmdAvSetDecoderInput(0, 2);
+            ioctl(fd_video, VIDEO_SELECT_SOURCE, VIDEO_SOURCE_MEMORY);
+	}
     }
     playMode = PlayMode;
     return true;
